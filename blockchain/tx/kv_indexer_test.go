@@ -1,4 +1,4 @@
-package blockchain
+package tx
 
 import (
 	"testing"
@@ -9,13 +9,15 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
-func TestBlockStoreLoadSaveTxResult(t *testing.T) {
-	db := db.NewMemDB()
-	store := NewBlockStore(db)
+func TestKVIndexerIndex(t *testing.T) {
+	indexer := &KVIndexer{db.NewMemDB()}
 
 	tx := types.Tx("HELLO WORLD")
 	txResult := &types.TxResult{tx, 1, abci.ResponseDeliverTx{Data: []byte{0}, Code: abci.CodeType_OK, Log: ""}}
+	hash := string(tx.Hash())
 
-	store.SaveTxResult(tx.Hash(), txResult)
-	assert.Equal(t, store.LoadTxResult(tx.Hash()), txResult)
+	indexer.Index(hash, *txResult)
+	loadedTxResult, err := indexer.Tx(hash)
+	assert.Nil(t, err)
+	assert.Equal(t, txResult, loadedTxResult)
 }

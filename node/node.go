@@ -17,6 +17,7 @@ import (
 	"github.com/tendermint/go-rpc/server"
 	"github.com/tendermint/go-wire"
 	bc "github.com/tendermint/tendermint/blockchain"
+	"github.com/tendermint/tendermint/blockchain/tx"
 	"github.com/tendermint/tendermint/consensus"
 	mempl "github.com/tendermint/tendermint/mempool"
 	"github.com/tendermint/tendermint/proxy"
@@ -106,6 +107,12 @@ func NewNode(config cfg.Config, privValidator *types.PrivValidator, clientCreato
 		consensusState.SetPrivValidator(privValidator)
 	}
 	consensusReactor := consensus.NewConsensusReactor(consensusState, fastSync)
+
+	// Transaction indexing
+	store := dbm.NewDB("txs", config.GetString("db_backend"), config.GetString("db_dir"))
+	txIndexer := &tx.KVIndexer{store}
+	bcReactor.SetTxIndexer(txIndexer)
+	consensusState.SetTxIndexer(txIndexer)
 
 	// Make p2p network switch
 	sw := p2p.NewSwitch(config.GetConfig("p2p"))

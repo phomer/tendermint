@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	abcicli "github.com/tendermint/abci/client"
+	abci "github.com/tendermint/abci/types"
 	. "github.com/tendermint/go-common"
 	cfg "github.com/tendermint/go-config"
 	dbm "github.com/tendermint/go-db"
@@ -20,8 +22,6 @@ import (
 	mempl "github.com/tendermint/tendermint/mempool"
 	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/types"
-	abcicli "github.com/tendermint/abci/client"
-	abci "github.com/tendermint/abci/types"
 
 	"github.com/tendermint/abci/example/counter"
 	"github.com/tendermint/abci/example/dummy"

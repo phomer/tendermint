@@ -11,6 +11,7 @@ import (
 	. "github.com/tendermint/go-common"
 	cfg "github.com/tendermint/go-config"
 	"github.com/tendermint/go-crypto"
+	"github.com/tendermint/tendermint/blockchain/tx"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
 )
@@ -234,9 +235,9 @@ func (s *State) validateBlock(block *types.Block) error {
 }
 
 // ApplyBlock executes the block, then commits and updates the mempool
-// atomically, then saves transaction results into `BlockStore`.
+// atomically, optionally indexing transaction results.
 func (s *State) ApplyBlock(eventCache types.Fireable, proxyAppConn proxy.AppConnConsensus,
-	block *types.Block, partsHeader types.PartSetHeader, mempool Mempool, blockStore BlockStore) error {
+	block *types.Block, partsHeader types.PartSetHeader, mempool Mempool, indexer tx.Indexer) error {
 
 	txResults, err := s.ExecBlock(eventCache, proxyAppConn, block, partsHeader)
 	if err != nil {
@@ -250,7 +251,7 @@ func (s *State) ApplyBlock(eventCache types.Fireable, proxyAppConn proxy.AppConn
 	}
 
 	for _, r := range txResults {
-		blockStore.SaveTxResult(r.Tx.Hash(), r)
+		indexer.Index(string(r.Tx.Hash()), *r)
 	}
 
 	return nil
@@ -304,7 +305,6 @@ type BlockStore interface {
 	Height() int
 	LoadBlock(height int) *types.Block
 	LoadBlockMeta(height int) *types.BlockMeta
-	SaveTxResult(hash []byte, txResul *types.TxResult)
 }
 
 type Handshaker struct {
@@ -403,7 +403,8 @@ func (h *Handshaker) ReplayBlocks(appHash []byte, appBlockHeight int, appConnCon
 
 		// replay the latest block
 		// FIXME should we resave tx results here while replaying blocks?
-		return h.state.ApplyBlock(eventCache, appConnConsensus, block, blockMeta.PartsHeader, MockMempool{}, h.store)
+		// NullIndexer is used here because we have these transactions already indexed.
+		return h.state.ApplyBlock(eventCache, appConnConsensus, block, blockMeta.PartsHeader, MockMempool{}, &tx.NullIndexer{})
 	} else if storeBlockHeight != stateBlockHeight {
 		// unless we failed before committing or saving state (previous 2 case),
 		// the store and state should be at the same height!

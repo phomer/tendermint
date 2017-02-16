@@ -15,6 +15,7 @@ import (
 	cfg "github.com/tendermint/go-config"
 	"github.com/tendermint/go-wire"
 	bc "github.com/tendermint/tendermint/blockchain"
+	"github.com/tendermint/tendermint/blockchain/tx"
 	mempl "github.com/tendermint/tendermint/mempool"
 	"github.com/tendermint/tendermint/proxy"
 	sm "github.com/tendermint/tendermint/state"
@@ -227,6 +228,7 @@ type ConsensusState struct {
 	config       cfg.Config
 	proxyAppConn proxy.AppConnConsensus
 	blockStore   *bc.BlockStore
+	txIndexer    tx.Indexer
 	mempool      *mempl.Mempool
 
 	privValidator PrivValidator // for signing votes
@@ -266,6 +268,7 @@ func NewConsensusState(config cfg.Config, state *sm.State, proxyAppConn proxy.Ap
 		timeoutTicker:    NewTimeoutTicker(),
 		timeoutParams:    InitTimeoutParamsFromConfig(config),
 		done:             make(chan struct{}),
+		txIndexer:        &tx.NullIndexer{},
 	}
 	// set function defaults (may be overwritten before calling Start)
 	cs.decideProposal = cs.defaultDecideProposal
@@ -283,9 +286,14 @@ func NewConsensusState(config cfg.Config, state *sm.State, proxyAppConn proxy.Ap
 //----------------------------------------
 // Public interface
 
-// implements events.Eventable
+// SetEventSwitch implements events.Eventable
 func (cs *ConsensusState) SetEventSwitch(evsw types.EventSwitch) {
 	cs.evsw = evsw
+}
+
+// SetTxIndexer sets transaction indexer.
+func (cs *ConsensusState) SetTxIndexer(indexer tx.Indexer) {
+	cs.txIndexer = indexer
 }
 
 func (cs *ConsensusState) String() string {
@@ -1248,7 +1256,7 @@ func (cs *ConsensusState) finalizeCommit(height int) {
 	// Execute and commit the block, and update the mempool.
 	// All calls to the proxyAppConn should come here.
 	// NOTE: the block.AppHash wont reflect these txs until the next block
-	err := stateCopy.ApplyBlock(eventCache, cs.proxyAppConn, block, blockParts.Header(), cs.mempool, cs.blockStore)
+	err := stateCopy.ApplyBlock(eventCache, cs.proxyAppConn, block, blockParts.Header(), cs.mempool, cs.txIndexer)
 	if err != nil {
 		// TODO!
 	}

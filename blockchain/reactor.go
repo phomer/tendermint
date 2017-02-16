@@ -11,6 +11,7 @@ import (
 	cfg "github.com/tendermint/go-config"
 	"github.com/tendermint/go-p2p"
 	"github.com/tendermint/go-wire"
+	"github.com/tendermint/tendermint/blockchain/tx"
 	"github.com/tendermint/tendermint/proxy"
 	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/types"
@@ -51,6 +52,7 @@ type BlockchainReactor struct {
 	requestsCh   chan BlockRequest
 	timeoutsCh   chan string
 	lastBlock    *types.Block
+	txIndexer    tx.Indexer
 
 	evsw types.EventSwitch
 }
@@ -78,6 +80,7 @@ func NewBlockchainReactor(config cfg.Config, state *sm.State, proxyAppConn proxy
 		fastSync:     fastSync,
 		requestsCh:   requestsCh,
 		timeoutsCh:   timeoutsCh,
+		txIndexer:    &tx.NullIndexer{},
 	}
 	bcR.BaseReactor = *p2p.NewBaseReactor(log, "BlockchainReactor", bcR)
 	return bcR
@@ -98,6 +101,11 @@ func (bcR *BlockchainReactor) OnStart() error {
 func (bcR *BlockchainReactor) OnStop() {
 	bcR.BaseReactor.OnStop()
 	bcR.pool.Stop()
+}
+
+// SetTxIndexer sets transaction indexer.
+func (bcR *BlockchainReactor) SetTxIndexer(indexer tx.Indexer) {
+	bcR.txIndexer = indexer
 }
 
 // Implements Reactor
@@ -242,7 +250,7 @@ FOR_LOOP:
 					// NOTE: we could improve performance if we
 					// didn't make the app commit to disk every block
 					// ... but we would need a way to get the hash without it persisting
-					err := bcR.state.ApplyBlock(bcR.evsw, bcR.proxyAppConn, first, firstPartsHeader, sm.MockMempool{}, bcR.store)
+					err := bcR.state.ApplyBlock(bcR.evsw, bcR.proxyAppConn, first, firstPartsHeader, sm.MockMempool{}, bcR.txIndexer)
 					if err != nil {
 						// TODO This is bad, are we zombie?
 						PanicQ(Fmt("Failed to process committed block (%d:%X): %v", first.Height, first.Hash(), err))

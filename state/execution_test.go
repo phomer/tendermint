@@ -12,6 +12,7 @@ import (
 	cfg "github.com/tendermint/go-config"
 	"github.com/tendermint/go-crypto"
 	dbm "github.com/tendermint/go-db"
+	"github.com/tendermint/tendermint/blockchain/tx"
 	"github.com/tendermint/tendermint/config/tendermint_test"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
@@ -66,7 +67,8 @@ func testHandshakeReplay(t *testing.T, n int) {
 	proxyApp := proxy.NewAppConns(config, clientCreator, NewHandshaker(config, state, store))
 	_, err := proxyApp.Start()
 	require.Nil(t, err, "Error starting proxy app connections: %v", err)
-	chain := makeBlockchain(t, proxyApp, state, store)
+	indexer := &dummyIndexer{0}
+	chain := makeBlockchain(t, proxyApp, state, indexer)
 	store.chain = chain //
 	latestAppHash := state.AppHash
 	proxyApp.Stop()
@@ -77,12 +79,13 @@ func testHandshakeReplay(t *testing.T, n int) {
 		_, err := proxyApp.Start()
 		require.Nil(t, err, "Error starting proxy app connections: %v", err)
 
-		state2, store2 := stateAndStore(config)
+		state2, _ := stateAndStore(config)
+		indexer.Indexed = 0
 		for i := 0; i < n; i++ {
 			block := chain[i]
-			err := state2.ApplyBlock(nil, proxyApp.Consensus(), block, block.MakePartSet(testPartSize).Header(), mempool, store2)
+			err := state2.ApplyBlock(nil, proxyApp.Consensus(), block, block.MakePartSet(testPartSize).Header(), mempool, indexer)
 			assert.Nil(t, err)
-			assert.Equal(t, i*nTxsPerBlock+nTxsPerBlock, store2.nSavedTxResults)
+			assert.Equal(t, i*nTxsPerBlock+nTxsPerBlock, indexer.Indexed)
 		}
 		proxyApp.Stop()
 	}
@@ -134,7 +137,7 @@ func signCommit(height, round int, hash []byte, header types.PartSetHeader) *typ
 }
 
 // make a blockchain with one validator
-func makeBlockchain(t *testing.T, proxyApp proxy.AppConns, state *State, store BlockStore) (blockchain []*types.Block) {
+func makeBlockchain(t *testing.T, proxyApp proxy.AppConns, state *State, indexer tx.Indexer) (blockchain []*types.Block) {
 
 	prevHash := state.LastBlockID.Hash
 	lastCommit := new(types.Commit)
@@ -148,7 +151,7 @@ func makeBlockchain(t *testing.T, proxyApp proxy.AppConns, state *State, store B
 		fmt.Println(i)
 		fmt.Println(prevBlockID)
 		fmt.Println(block.LastBlockID)
-		err := state.ApplyBlock(nil, proxyApp.Consensus(), block, block.MakePartSet(testPartSize).Header(), mempool, store)
+		err := state.ApplyBlock(nil, proxyApp.Consensus(), block, block.MakePartSet(testPartSize).Header(), mempool, indexer)
 		require.Nil(t, err)
 
 		voteSet := types.NewVoteSet(chainID, i, 0, types.VoteTypePrecommit, state.Validators)
@@ -181,13 +184,12 @@ func stateAndStore(config cfg.Config) (*State, *mockBlockStore) {
 // mock block store
 
 type mockBlockStore struct {
-	config          cfg.Config
-	chain           []*types.Block
-	nSavedTxResults int
+	config cfg.Config
+	chain  []*types.Block
 }
 
 func NewMockBlockStore(config cfg.Config, chain []*types.Block) *mockBlockStore {
-	return &mockBlockStore{config, chain, 0}
+	return &mockBlockStore{config, chain}
 }
 
 func (bs *mockBlockStore) Height() int                       { return len(bs.chain) }
@@ -200,6 +202,17 @@ func (bs *mockBlockStore) LoadBlockMeta(height int) *types.BlockMeta {
 		PartsHeader: block.MakePartSet(bs.config.GetInt("block_part_size")).Header(),
 	}
 }
-func (bs *mockBlockStore) SaveTxResult(hash []byte, txResult *types.TxResult) {
-	bs.nSavedTxResults++
+
+// dummyIndexer increments counter every time we index transaction.
+type dummyIndexer struct {
+	Indexed int
+}
+
+func (indexer *dummyIndexer) Tx(hash string) (*types.TxResult, error) {
+	return nil, nil
+}
+
+func (indexer *dummyIndexer) Index(hash string, txResult types.TxResult) error {
+	indexer.Indexed++
+	return nil
 }
