@@ -15,6 +15,7 @@ import (
 	"github.com/tendermint/tendermint/config/tendermint_test"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/state/tx"
+	"github.com/tendermint/tendermint/state/tx/indexer"
 	"github.com/tendermint/tendermint/types"
 )
 
@@ -212,7 +213,7 @@ func (indexer *dummyIndexer) Tx(hash string) (*types.TxResult, error) {
 	return nil, nil
 }
 
-func (indexer *dummyIndexer) Index(batch []tx.IndexerKVPair) error {
-	indexer.Indexed += len(batch)
+func (indexer *dummyIndexer) Batch(batch *indexer.Batch) error {
+	indexer.Indexed += batch.Size()
 	return nil
 }

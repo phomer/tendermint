@@ -13,6 +13,7 @@ import (
 	"github.com/tendermint/go-crypto"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/state/tx"
+	txindexer "github.com/tendermint/tendermint/state/tx/indexer"
 	"github.com/tendermint/tendermint/types"
 )
 
@@ -250,11 +251,11 @@ func (s *State) ApplyBlock(eventCache types.Fireable, proxyAppConn proxy.AppConn
 		return fmt.Errorf("Commit failed for application: %v", err)
 	}
 
-	batch := make([]tx.IndexerKVPair, len(txResults))
-	for i, r := range txResults {
-		batch[i] = tx.IndexerKVPair{string(r.Tx.Hash()), *r}
+	batch := txindexer.NewBatch()
+	for _, r := range txResults {
+		batch.Index(string(r.Tx.Hash()), *r)
 	}
-	indexer.Index(batch)
+	indexer.Batch(batch)
 
 	return nil
 }
@@ -406,7 +407,7 @@ func (h *Handshaker) ReplayBlocks(appHash []byte, appBlockHeight int, appConnCon
 		// replay the latest block
 		// FIXME should we resave tx results here while replaying blocks?
 		// NullIndexer is used here because we have these transactions already indexed.
-		return h.state.ApplyBlock(eventCache, appConnConsensus, block, blockMeta.PartsHeader, MockMempool{}, &tx.NullIndexer{})
+		return h.state.ApplyBlock(eventCache, appConnConsensus, block, blockMeta.PartsHeader, MockMempool{}, &txindexer.Null{})
 	} else if storeBlockHeight != stateBlockHeight {
 		// unless we failed before committing or saving state (previous 2 case),
 		// the store and state should be at the same height!

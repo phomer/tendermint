@@ -19,6 +19,7 @@ import (
 	"github.com/tendermint/tendermint/proxy"
 	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/state/tx"
+	txindexer "github.com/tendermint/tendermint/state/tx/indexer"
 	"github.com/tendermint/tendermint/types"
 )
 
@@ -268,7 +269,7 @@ func NewConsensusState(config cfg.Config, state *sm.State, proxyAppConn proxy.Ap
 		timeoutTicker:    NewTimeoutTicker(),
 		timeoutParams:    InitTimeoutParamsFromConfig(config),
 		done:             make(chan struct{}),
-		txIndexer:        &tx.NullIndexer{},
+		txIndexer:        &txindexer.Null{},
 	}
 	// set function defaults (may be overwritten before calling Start)
 	cs.decideProposal = cs.defaultDecideProposal

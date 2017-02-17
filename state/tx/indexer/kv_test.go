@@ -1,4 +1,4 @@
-package tx
+package indexer
 
 import (
 	"fmt"
@@ -13,16 +13,16 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
-func TestKVIndexerIndex(t *testing.T) {
-	indexer := &KVIndexer{db.NewMemDB()}
+func TestKVIndex(t *testing.T) {
+	indexer := &KV{store: db.NewMemDB()}
 
 	tx := types.Tx("HELLO WORLD")
 	txResult := &types.TxResult{tx, 1, abci.ResponseDeliverTx{Data: []byte{0}, Code: abci.CodeType_OK, Log: ""}}
 	hash := string(tx.Hash())
 
-	err := indexer.Index([]IndexerKVPair{
-		{hash, *txResult},
-	})
+	batch := NewBatch()
+	batch.Index(hash, *txResult)
+	err := indexer.Batch(batch)
 	require.Nil(t, err)
 
 	loadedTxResult, err := indexer.Tx(hash)
@@ -30,7 +30,7 @@ func TestKVIndexerIndex(t *testing.T) {
 	assert.Equal(t, txResult, loadedTxResult)
 }
 
-func benchmarkKVIndexerIndex(txsCount int, b *testing.B) {
+func benchmarkKVIndex(txsCount int, b *testing.B) {
 	tx := types.Tx("HELLO WORLD")
 	txResult := &types.TxResult{tx, 1, abci.ResponseDeliverTx{Data: []byte{0}, Code: abci.CodeType_OK, Log: ""}}
 
@@ -41,22 +41,22 @@ func benchmarkKVIndexerIndex(txsCount int, b *testing.B) {
 	defer os.RemoveAll(dir)
 
 	store := db.NewDB("tx_indexer", "leveldb", dir)
-	indexer := &KVIndexer{store}
+	indexer := &KV{store: store}
 
-	batch := make([]IndexerKVPair, txsCount)
+	batch := NewBatch()
 	for i := 0; i < txsCount; i++ {
-		batch[i] = IndexerKVPair{fmt.Sprintf("hash%v", i), *txResult}
+		batch.Index(fmt.Sprintf("hash%v", i), *txResult)
 	}
 
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
-		err = indexer.Index(batch)
+		err = indexer.Batch(batch)
 	}
 }
 
-func BenchmarkKVIndexerIndex1(b *testing.B)     { benchmarkKVIndexerIndex(1, b) }
-func BenchmarkKVIndexerIndex500(b *testing.B)   { benchmarkKVIndexerIndex(500, b) }
-func BenchmarkKVIndexerIndex1000(b *testing.B)  { benchmarkKVIndexerIndex(1000, b) }
-func BenchmarkKVIndexerIndex2000(b *testing.B)  { benchmarkKVIndexerIndex(2000, b) }
-func BenchmarkKVIndexerIndex10000(b *testing.B) { benchmarkKVIndexerIndex(10000, b) }
+func BenchmarkKVIndex1(b *testing.B)     { benchmarkKVIndex(1, b) }
+func BenchmarkKVIndex500(b *testing.B)   { benchmarkKVIndex(500, b) }
+func BenchmarkKVIndex1000(b *testing.B)  { benchmarkKVIndex(1000, b) }
+func BenchmarkKVIndex2000(b *testing.B)  { benchmarkKVIndex(2000, b) }
+func BenchmarkKVIndex10000(b *testing.B) { benchmarkKVIndex(10000, b) }

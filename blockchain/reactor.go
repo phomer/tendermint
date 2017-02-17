@@ -14,6 +14,7 @@ import (
 	"github.com/tendermint/tendermint/proxy"
 	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/state/tx"
+	txindexer "github.com/tendermint/tendermint/state/tx/indexer"
 	"github.com/tendermint/tendermint/types"
 )
 
@@ -80,7 +81,7 @@ func NewBlockchainReactor(config cfg.Config, state *sm.State, proxyAppConn proxy
 		fastSync:     fastSync,
 		requestsCh:   requestsCh,
 		timeoutsCh:   timeoutsCh,
-		txIndexer:    &tx.NullIndexer{},
+		txIndexer:    &txindexer.Null{},
 	}
 	bcR.BaseReactor = *p2p.NewBaseReactor(log, "BlockchainReactor", bcR)
 	return bcR
