@@ -39,13 +39,16 @@ func (indexer *KVIndexer) Tx(hash string) (*types.TxResult, error) {
 	return txResult, nil
 }
 
-// Index synchronously writes transaction to the KV storage.
-func (indexer *KVIndexer) Index(hash string, txResult types.TxResult) error {
-	if hash == "" {
-		return ErrorEmptyHash
+// Index writes transactions to the KV storage.
+func (indexer *KVIndexer) Index(batch []IndexerKVPair) error {
+	storeBatch := indexer.Store.NewBatch()
+	for _, pair := range batch {
+		if pair.Hash == "" {
+			return ErrorEmptyHash
+		}
+		rawBytes := wire.BinaryBytes(&pair.Result)
+		storeBatch.Set([]byte(pair.Hash), rawBytes)
 	}
-
-	rawBytes := wire.BinaryBytes(&txResult)
-	indexer.Store.SetSync([]byte(hash), rawBytes)
+	storeBatch.Write()
 	return nil
 }

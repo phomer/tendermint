@@ -7,7 +7,7 @@ import (
 // TxResult contains DeliverTx response and height of the block, where this
 // transaction was committed.
 //
-// One usage is indexing transaction results (see "blockchain/tx/indexer.go").
+// One usage is indexing transaction results (see "state/tx/indexer.go").
 type TxResult struct {
 	Tx                Tx
 	Height            int

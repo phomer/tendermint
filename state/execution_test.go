@@ -12,9 +12,9 @@ import (
 	cfg "github.com/tendermint/go-config"
 	"github.com/tendermint/go-crypto"
 	dbm "github.com/tendermint/go-db"
-	"github.com/tendermint/tendermint/blockchain/tx"
 	"github.com/tendermint/tendermint/config/tendermint_test"
 	"github.com/tendermint/tendermint/proxy"
+	"github.com/tendermint/tendermint/state/tx"
 	"github.com/tendermint/tendermint/types"
 )
 
@@ -212,7 +212,7 @@ func (indexer *dummyIndexer) Tx(hash string) (*types.TxResult, error) {
 	return nil, nil
 }
 
-func (indexer *dummyIndexer) Index(hash string, txResult types.TxResult) error {
-	indexer.Indexed++
+func (indexer *dummyIndexer) Index(batch []tx.IndexerKVPair) error {
+	indexer.Indexed += len(batch)
 	return nil
 }

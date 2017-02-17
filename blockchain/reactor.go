@@ -11,9 +11,9 @@ import (
 	cfg "github.com/tendermint/go-config"
 	"github.com/tendermint/go-p2p"
 	"github.com/tendermint/go-wire"
-	"github.com/tendermint/tendermint/blockchain/tx"
 	"github.com/tendermint/tendermint/proxy"
 	sm "github.com/tendermint/tendermint/state"
+	"github.com/tendermint/tendermint/state/tx"
 	"github.com/tendermint/tendermint/types"
 )
 

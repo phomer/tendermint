@@ -7,13 +7,12 @@ import (
 // NullIndexer acts as a /dev/null.
 type NullIndexer struct{}
 
-// Tx gets transaction from the KV storage and returns it or nil if the
-// transaction is not found.
+// Tx panics.
 func (indexer *NullIndexer) Tx(hash string) (*types.TxResult, error) {
 	panic("You are trying to get the transaction from a null indexer")
 }
 
-// Index synchronously writes transaction to the KV storage.
-func (indexer *NullIndexer) Index(hash string, txResult types.TxResult) error {
+// Index returns nil.
+func (indexer *NullIndexer) Index(batch []IndexerKVPair) error {
 	return nil
 }

@@ -15,10 +15,10 @@ import (
 	cfg "github.com/tendermint/go-config"
 	"github.com/tendermint/go-wire"
 	bc "github.com/tendermint/tendermint/blockchain"
-	"github.com/tendermint/tendermint/blockchain/tx"
 	mempl "github.com/tendermint/tendermint/mempool"
 	"github.com/tendermint/tendermint/proxy"
 	sm "github.com/tendermint/tendermint/state"
+	"github.com/tendermint/tendermint/state/tx"
 	"github.com/tendermint/tendermint/types"
 )
 
