@@ -109,7 +109,7 @@ func NewNode(config cfg.Config, privValidator *types.PrivValidator, clientCreato
 	consensusReactor := consensus.NewConsensusReactor(consensusState, fastSync)
 
 	// Transaction indexing
-	store := dbm.NewDB("txs", config.GetString("db_backend"), config.GetString("db_dir"))
+	store := dbm.NewDB("tx_indexer", config.GetString("db_backend"), config.GetString("db_dir"))
 	txIndexer := &tx.KVIndexer{store}
 	bcReactor.SetTxIndexer(txIndexer)
 	consensusState.SetTxIndexer(txIndexer)
