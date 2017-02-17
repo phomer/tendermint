@@ -15,7 +15,7 @@ import (
 	"github.com/tendermint/tendermint/config/tendermint_test"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/state/tx"
-	"github.com/tendermint/tendermint/state/tx/indexer"
+	txindexer "github.com/tendermint/tendermint/state/tx/indexer"
 	"github.com/tendermint/tendermint/types"
 )
 
@@ -33,6 +33,32 @@ var (
 
 func TestExecBlock(t *testing.T) {
 	// TODO
+}
+
+func TestApplyBlock(t *testing.T) {
+	cc := proxy.NewLocalClientCreator(dummy.NewDummyApplication())
+	config := tendermint_test.ResetConfig("proxy_test_")
+	proxyApp := proxy.NewAppConns(config, cc, nil)
+	_, err := proxyApp.Start()
+	require.Nil(t, err)
+	defer proxyApp.Stop()
+
+	indexer := &dummyIndexer{0}
+	state, _ := stateAndStore(config)
+
+	// make block
+	prevHash := state.LastBlockID.Hash
+	prevParts := types.PartSetHeader{}
+	valHash := state.Validators.Hash()
+	prevBlockID := types.BlockID{prevHash, prevParts}
+	block, _ := types.MakeBlock(1, chainID, txsFunc(1), new(types.Commit),
+		prevBlockID, valHash, state.AppHash, testPartSize)
+
+	err = state.ApplyBlock(nil, proxyApp.Consensus(), block, block.MakePartSet(testPartSize).Header(), mempool, indexer)
+
+	require.Nil(t, err)
+	assert.Equal(t, nTxsPerBlock, indexer.Indexed) // test indexing works
+	// TODO check state and mempool
 }
 
 //---------------------------------------
@@ -68,7 +94,7 @@ func testHandshakeReplay(t *testing.T, n int) {
 	proxyApp := proxy.NewAppConns(config, clientCreator, NewHandshaker(config, state, store))
 	_, err := proxyApp.Start()
 	require.Nil(t, err, "Error starting proxy app connections: %v", err)
-	indexer := &dummyIndexer{0}
+	indexer := &txindexer.Null{}
 	chain := makeBlockchain(t, proxyApp, state, indexer)
 	store.chain = chain //
 	latestAppHash := state.AppHash
@@ -81,12 +107,10 @@ func testHandshakeReplay(t *testing.T, n int) {
 		require.Nil(t, err, "Error starting proxy app connections: %v", err)
 
 		state2, _ := stateAndStore(config)
-		indexer.Indexed = 0
 		for i := 0; i < n; i++ {
 			block := chain[i]
 			err := state2.ApplyBlock(nil, proxyApp.Consensus(), block, block.MakePartSet(testPartSize).Header(), mempool, indexer)
 			assert.Nil(t, err)
-			assert.Equal(t, i*nTxsPerBlock+nTxsPerBlock, indexer.Indexed)
 		}
 		proxyApp.Stop()
 	}
@@ -213,7 +237,7 @@ func (indexer *dummyIndexer) Tx(hash string) (*types.TxResult, error) {
 	return nil, nil
 }
 
-func (indexer *dummyIndexer) Batch(batch *indexer.Batch) error {
+func (indexer *dummyIndexer) Batch(batch *txindexer.Batch) error {
 	indexer.Indexed += batch.Size()
 	return nil
 }
